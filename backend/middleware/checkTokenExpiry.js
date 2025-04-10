@@ -2,10 +2,10 @@ const User = require("../model/User");
 
 const checkTokenExpiry = (req, res, next) => {
 
-    const sub = req.body.sub
+    const token = req.cookies.token;
 
     try {
-        const user = User.findOne({ googleId: sub })
+        const user = User.findOne({ googleId: token })
         if (!user) {
             res.status(401).json({
                 success: false,

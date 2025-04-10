@@ -6,7 +6,8 @@ const client = new postmark.ServerClient(process.env.POSTMARK_API_KEY);
 
 const login = async (req, res) => {
   const { data } = req.body;
-  console.log(data)
+  console.log(data);
+
   if (!data || !data.email) {
     return res.status(400).json({
       success: false,
@@ -18,7 +19,6 @@ const login = async (req, res) => {
     let user = await User.findOne({ email: data.email });
 
     if (!user) {
-      // Create new user
       user = new User({
         googleId: data.sub,
         name: data.name,
@@ -28,17 +28,25 @@ const login = async (req, res) => {
       });
 
       await user.save();
-    }
-    else {
+    } else {
       user.exp = data.exp;
-      if (user.googleId != data.sub) {
+      if (user.googleId !== data.sub) {
         user.googleId = data.sub;
       }
       if (!user.emailverified) {
-        user.emailverified = data.email_verified
+        user.emailverified = data.email_verified;
       }
       await user.save();
     }
+
+    // 🟢 Set HTTP-only cookie with googleId
+    res.cookie('token', user.googleId, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // use secure in production
+      sameSite: 'Lax', // or 'Strict' if CSRF is a concern
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+
     res.status(200).json({
       success: true,
       message: "User authenticated successfully",
@@ -52,7 +60,8 @@ const login = async (req, res) => {
       message: "Server error",
     });
   }
-}
+};
+
 
 
 const getEmails = async (req, res) => {
@@ -74,13 +83,14 @@ const getEmails = async (req, res) => {
 
 const sendEmail = async (req, res) => {
   const { to, subject, body } = req.body;
+  console.log(req.body, "sdhfildshflkdsnfkladfkadfkldaf=============")
 
   try {
     await client.sendEmail({
       From: "210104001@hbtu.ac.in",
       To: to,
       Subject: subject,
-      HtmlBody: body,
+      TextBody: body,
     });
 
     const email = new Email({ user: req.user.id, to, subject, body });
@@ -91,6 +101,7 @@ const sendEmail = async (req, res) => {
       "message": "Email Sent SuccessFull",
     });
   } catch (err) {
+    console.log(err)
     res.status(500).json({
       "success": false,
       "message": "Failed to send email"
